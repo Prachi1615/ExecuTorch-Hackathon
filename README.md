@@ -1,5 +1,7 @@
 # Pip: a robot head you can teach in seconds
 
+Presentation - https://docs.google.com/presentation/d/1t9mUHzNZJa9VeZlJB3thjMR-OSlW5Bqb-GC11URJn4g/edit?slide=id.p1#slide=id.p1
+
 Pip is a small pan-tilt robot head built on the **Arduino VENTUNO Q**. Hold up any object, press a button and say its name: Pip takes a few photos, learns it on the spot, and from then on nods when it sees it again. Show it something it doesn't know and it gives you a curious look.
 
 Everything runs **on the board**: no training step and no cloud for vision.
