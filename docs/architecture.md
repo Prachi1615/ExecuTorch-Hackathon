@@ -7,7 +7,7 @@ The VENTUNO Q has two processors, and Pip uses both:
 | | Qualcomm Dragonwing IQ8 (Linux) | STM32H5 microcontroller |
 |---|---|---|
 | Runs | Ubuntu, Python, ExecuTorch | Arduino sketch on Zephyr |
-| Pip uses it for | Camera, DINOv2 on the Hexagon NPU, speech-to-text, decisions, servo commands, API | Reading the Modulino Buttons, driving their LEDs |
+| Pip uses it for | Camera, DINOv2 on the Hexagon NPU, speech-to-text, decisions, servo commands | Reading the Modulino Buttons, driving their LEDs |
 | Link | Arduino Router (`/var/run/arduino-router.sock`) | Arduino Bridge over `/dev/ttySTM0` |
 
 The servos are driven from Linux through a USB bus-servo adapter rather than from the MCU. That was the quickest path, and gestures don't need sub-millisecond timing.
@@ -32,7 +32,7 @@ The first thing taught is `nothing`: the empty scene. Without it, an empty desk 
 
 ## Teaching
 
-Pressing **A** (or `t`, or `POST /teach`):
+Pressing **A** (or `t`):
 
 1. Lights button LED A.
 2. If no name was given and the mic is on, records 3 s and transcribes it with Whisper `base.en` (int8, CPU), dropping filler like "it's a" and "this is the".
@@ -56,11 +56,10 @@ Teaching an existing name again adds more examples to it, which makes it more re
 
 ## Inputs
 
-The main loop merges three input sources into one list of commands each cycle:
+The main loop checks two input sources each cycle:
 
 - Modulino Buttons through the Bridge (`take_buttons` returns presses latched since the last call, so short presses aren't missed between polls)
 - Keyboard keys `t`, `f`, `p` (backup if the Bridge isn't available)
-- HTTP API commands (`--api`), see [api.md](api.md)
 
 ## Performance
 

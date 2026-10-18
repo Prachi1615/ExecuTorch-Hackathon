@@ -12,8 +12,6 @@ At startup you should see `model: .../dino16/dino_features.pte`, `microphone rea
 
 | Flag | Effect |
 |---|---|
-| `--api` | serve the robot API on port 8765 ([api.md](api.md)) |
-| `--no-mic` | no voice naming (objects get "thing 1", "thing 2"...) |
 | `--no-servo` | servos stay still |
 | `--no-buttons` | don't use the Bridge; keys only |
 

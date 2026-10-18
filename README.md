@@ -9,7 +9,6 @@ Everything runs **on the board**: no training step and no cloud for vision.
 - **Hears** object names offline with Whisper on the CPU
 - **Moves** with two Feetech STS3215 servos (pan and tilt) for nods, shakes and curious looks
 - **Takes input** from Modulino Buttons read by the board's STM32 **microcontroller**, sent to Linux over the Arduino Bridge
-- **Optional brain:** a local HTTP API so [OpenMind OM1](https://github.com/OpenMind/OM1) can hold conversations and drive the head
 
 Built for the IoT track: on-device AI + real-time sensing and control + connected experiences.
 
@@ -21,7 +20,7 @@ Built for the IoT track: on-device AI + real-time sensing and control + connecte
                      memory.npz (fingerprints per learned name) ◄── teach │ compare
                                                                           ▼
  Modulino Buttons ──► STM32 MCU ──Bridge──► Linux loop ──► decision ──► servos (nod / shake / curious)
- Webcam mic ──► Whisper (CPU) ──► object name ┘           └──► HTTP API (:8765) ◄──► OM1 (optional)
+ Webcam mic ──► Whisper (CPU) ──► object name ┘
 ```
 
 Details: [docs/architecture.md](docs/architecture.md)
@@ -59,8 +58,7 @@ Full guide and demo checklist: [docs/usage.md](docs/usage.md)
 3. [Servos](docs/servos.md): IDs, power and testing
 4. [Bridge and buttons](docs/bridge-and-buttons.md): the microcontroller sketch, and the startup timing gotcha
 5. [Usage](docs/usage.md)
-6. [Robot API](docs/api.md) for OM1 or other controllers
-7. [Troubleshooting](docs/troubleshooting.md): every problem we hit and its fix
+6. [Troubleshooting](docs/troubleshooting.md): every problem we hit and its fix
 
 ## Repository layout
 
@@ -69,7 +67,6 @@ recognize.py        main loop: camera, NPU recognition, teaching, reactions, inp
 head.py             servo gestures (nod, shake, curious, idle)
 bridge.py           MessagePack-RPC client for the Arduino Router (Linux -> MCU)
 listen.py           offline speech-to-text for object names (faster-whisper)
-api.py              local HTTP API for OM1 / other controllers
 run.sh              one-command start
 requirements.txt    robot Python dependencies
 mcu/robot_buttons/  microcontroller sketch (Arduino App Lab)
