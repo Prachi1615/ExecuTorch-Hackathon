@@ -1,0 +1,8 @@
+# Robot runtime (use a venv separate from ExecuTorch's)
+opencv-python-headless
+numpy
+pillow
+feetech-servo-sdk
+pyserial
+msgpack
+faster-whisper

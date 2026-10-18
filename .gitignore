@@ -1,0 +1,17 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Learned memory (per location / lighting)
+memory.npz
+
+# Exported models and calibration data (large / generated; see docs/model-export.md)
+dino/
+dino16/
+calib*/
+*.pte
+*.raw
+*.npy
+etdump.etdp
+outputs/
