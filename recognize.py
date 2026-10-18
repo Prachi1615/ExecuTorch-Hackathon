@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 """Teach-and-recognize robot head: DINOv2 on the NPU, servo reactions,
-Modulino buttons, voice naming, and an optional API for OM1.
+Modulino buttons, and voice naming.
 
   python recognize.py teach <name>   teach from the terminal
   python recognize.py watch          run the robot (Ctrl+C to stop)
-      --api          serve the robot API on port 8765 (for OM1)
-      --no-mic       don't use the microphone (e.g. when OM1 is using it)
       --no-servo     servos stay still
       --no-buttons   don't use the Modulino buttons
   python recognize.py forget         clear everything except the empty-scene baseline
@@ -42,7 +40,6 @@ SHOTS = 8          # photos per teach
 IDLE_AFTER = 15    # seconds of "nothing" before it looks around
 BTN_A, BTN_B, BTN_C = 1, 2, 4
 LED_TEACH, LED_PAUSE = 1, 4
-GESTURES = ("nod", "shake", "curious", "idle")
 
 MEAN = np.array([0.485, 0.456, 0.406], np.float32)
 STD = np.array([0.229, 0.224, 0.225], np.float32)
@@ -123,10 +120,6 @@ def next_auto_name(names):
     return f"thing {i}"
 
 
-def known_objects(names):
-    return sorted(set(names) - {"nothing"})
-
-
 # ---------- camera ----------
 def open_camera():
     cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
@@ -178,24 +171,25 @@ def read_keys():
 
 
 # ---------- robot loop ----------
-def watch(use_servos=True, use_buttons=True, use_mic=True, use_api=False):
+def watch(use_servos=True, use_buttons=True):
     print(f"model: {MODEL}")
 
-    listen_for_name = None
-    if use_mic:
-        try:
-            from listen import listen_for_name, load as load_speech
-            load_speech()
-            print("microphone ready")
-        except Exception as e:
-            print(f"microphone unavailable ({e}); objects get automatic names")
-            listen_for_name = None
+    # microphone (optional)
+    try:
+        from listen import listen_for_name, load as load_speech
+        load_speech()
+        print("microphone ready")
+    except Exception as e:
+        print(f"microphone unavailable ({e}); objects get automatic names")
+        listen_for_name = None
 
+    # servos (optional)
     head = None
     if use_servos:
         from head import Head
         head = Head()
 
+    # buttons via the Bridge (optional)
     bridge = None
     if use_buttons:
         try:
@@ -207,15 +201,10 @@ def watch(use_servos=True, use_buttons=True, use_mic=True, use_api=False):
             print(f"buttons unavailable ({e}); use keys t / f / p")
             bridge = None
 
-    api = None
-    if use_api:
-        from api import RobotAPI
-        api = RobotAPI()
-
     paused = False
 
     def gesture(name):
-        if head and not paused and name in GESTURES:
+        if head and not paused:
             head.gesture(name)
 
     def leds(mask):
@@ -225,14 +214,7 @@ def watch(use_servos=True, use_buttons=True, use_mic=True, use_api=False):
             except Exception:
                 pass
 
-    def announce(text):
-        print(f">>> {text}")
-        if api:
-            api.event(text)
-
     names, vecs = load_memory()
-    if api:
-        api.update(known=known_objects(names))
     cap = open_camera()
     old_term = termios.tcgetattr(sys.stdin) if sys.stdin.isatty() else None
     if old_term:
@@ -244,7 +226,7 @@ def watch(use_servos=True, use_buttons=True, use_mic=True, use_api=False):
         while True:
             t0 = time.time()
 
-            # --- gather commands: buttons, keyboard, API ---
+            # --- inputs: buttons + keyboard ---
             pressed = 0
             if bridge:
                 try:
@@ -253,64 +235,41 @@ def watch(use_servos=True, use_buttons=True, use_mic=True, use_api=False):
                     print(f"button read failed: {e}")
             pressed |= read_keys()
 
-            actions = []
             if pressed & BTN_C:
-                actions.append(("pause", {}))
+                paused = not paused
+                leds(LED_PAUSE if paused else 0)
+                if head:
+                    head.center()
+                print(">>> PAUSED" if paused else ">>> resumed")
+
             if pressed & BTN_A:
-                actions.append(("teach", {"voice": True}))
-            if pressed & BTN_B:
-                actions.append(("forget", {}))
-            if api:
-                actions += api.pop_commands()
-
-            changed_memory = False
-            for cmd, data in actions:
-                if cmd == "pause":
-                    paused = bool(data["paused"]) if "paused" in data else not paused
-                    leds(LED_PAUSE if paused else 0)
-                    if head:
-                        head.center()
-                    announce("paused" if paused else "resumed")
-                    if api:
-                        api.update(paused=paused)
-
-                elif cmd == "gesture":
-                    gesture(str(data.get("name", "")))
-
-                elif cmd == "teach":
-                    leds(LED_TEACH | (LED_PAUSE if paused else 0))
-                    name = str(data.get("name", "")).strip().lower()
-                    if not name and data.get("voice") and listen_for_name:
-                        print(">>> say its name now...")
-                        try:
-                            name = listen_for_name()
-                        except Exception as e:
-                            print(f"mic failed: {e}")
-                    name = name or next_auto_name(names)
-                    print(f">>> learning '{name}'... hold it up")
-                    new = capture_shots(cap, name)
-                    names, vecs = names + [name] * SHOTS, np.vstack([vecs] + new)
-                    save_memory(names, vecs)
-                    leds(LED_PAUSE if paused else 0)
-                    announce(f"learned {name}")
-                    if api:
-                        api.update(known=known_objects(names), seeing=name)
-                    gesture("nod")
-                    current = name
-                    changed_memory = True
-
-                elif cmd == "forget":
-                    forget_all_but_baseline()
-                    names, vecs = load_memory()
-                    announce("forgot everything")
-                    if api:
-                        api.update(known=[], seeing="nothing")
-                    gesture("shake")
-                    current = "nothing"
-                    changed_memory = True
-
-            if changed_memory:
+                leds(LED_TEACH | (LED_PAUSE if paused else 0))
+                name = ""
+                if listen_for_name:
+                    print(">>> say its name now...")
+                    try:
+                        name = listen_for_name()
+                    except Exception as e:
+                        print(f"mic failed: {e}")
+                name = name or next_auto_name(names)
+                print(f">>> learning '{name}'... hold it up")
+                new = capture_shots(cap, name)
+                names, vecs = names + [name] * SHOTS, np.vstack([vecs] + new)
+                save_memory(names, vecs)
+                leds(LED_PAUSE if paused else 0)
+                print(f">>> got it! Known: {sorted(set(names))}")
+                gesture("nod")
                 recent.clear()
+                current = name
+                continue
+
+            if pressed & BTN_B:
+                forget_all_but_baseline()
+                names, vecs = load_memory()
+                print(">>> forgot everything (kept the empty-scene baseline)")
+                gesture("shake")
+                recent.clear()
+                current = "nothing"
                 continue
 
             # --- recognition ---
@@ -334,19 +293,16 @@ def watch(use_servos=True, use_buttons=True, use_mic=True, use_api=False):
             if is_steady and steady != current:
                 current, last_change = steady, time.time()
                 if steady == "unknown":
-                    announce("I see something I don't know")
+                    print(">>> hmm, what's that?")
                     gesture("curious")
                 elif steady == "nothing":
-                    announce("nothing in front of me")
+                    print(">>> (nothing there)")
                 else:
-                    announce(f"I see {steady}")
+                    print(f">>> I know this! It's: {steady}")
                     gesture("nod")
             elif current == "nothing" and time.time() - last_change > IDLE_AFTER:
                 gesture("idle")
                 last_change = time.time()
-
-            if api:
-                api.update(seeing=current, score=round(score, 3))
 
             verdict = f"I SEE: {steady}" if is_steady and steady != "unknown" else "..."
             detail = "  ".join(f"{n}={s:.2f}" for n, s in ranked)
@@ -360,8 +316,6 @@ def watch(use_servos=True, use_buttons=True, use_mic=True, use_api=False):
             termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_term)
         cap.release()
         leds(0)
-        if api:
-            api.close()
         if bridge:
             bridge.close()
         if head:
@@ -377,6 +331,4 @@ if __name__ == "__main__":
         print("memory cleared (kept the empty-scene baseline)")
     else:
         watch(use_servos="--no-servo" not in sys.argv,
-              use_buttons="--no-buttons" not in sys.argv,
-              use_mic="--no-mic" not in sys.argv,
-              use_api="--api" in sys.argv)
+              use_buttons="--no-buttons" not in sys.argv)
