@@ -79,6 +79,7 @@ docs/               documentation
 ## Results
 
 - **NPU inference:** about 5 ms per image for DINOv2-small (16-bit activations, 8-bit weights)
+- **NPU vs CPU:** DINOv2-small takes **6.3 ms** per image on the Hexagon NPU (ExecuTorch + QNN, 16-bit activations, 8-bit weights) vs **684 ms** in PyTorch on the board's CPU: **~108× faster**
 - **Full recognition step:** about 0.5 s, dominated by starting the ExecuTorch runner process for each frame
 - **Teaching:** 8 photos, about 6 seconds, no training
 - **8-bit vs 16-bit:** 8a8w quantization gave only 0.81 cosine similarity to the CPU model; 16a8w is used instead
